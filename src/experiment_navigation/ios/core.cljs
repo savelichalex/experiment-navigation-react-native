@@ -162,11 +162,14 @@
         width (:width dimensions)
         height (:height dimensions)
         progress (r/atom 0)
+        start-time (js/Date.now)
         render-loop (fn []
                       (if (< @progress 1)
                         (js/requestAnimationFrame #(do
-                                                    (swap! progress (fn [a] (+ a 0.01)))))
-                        (swap! progress #(identity 1))))]
+                                                    (swap! progress (fn [a] (+ a 0.16)))))
+                        (do
+                          (swap! progress #(identity 1))
+                          (print (- (js/Date.now) start-time)))))]
     (fn []
       (render-loop)
       (render-scenes
