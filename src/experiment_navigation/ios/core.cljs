@@ -11,9 +11,12 @@
 (def text (r/adapt-react-class (.-Text ReactNative)))
 (def view (r/adapt-react-class (.-View ReactNative)))
 (def image (r/adapt-react-class (.-Image ReactNative)))
-(def touchable-highlight (r/adapt-react-class (.-TouchableHighlight ReactNative)))
+(def touchable-opacity (r/adapt-react-class (.-TouchableOpacity ReactNative)))
 
 (def Animated (. ReactNative -Animated))
+(def animated-touchable-opacity
+  (r/adapt-react-class
+    (. Animated (createAnimatedComponent (.-TouchableOpacity ReactNative)))))
 (def animated-view (r/adapt-react-class (. Animated -View)))
 (def animated-text (r/adapt-react-class (. Animated -Text)))
 
@@ -30,7 +33,7 @@
 ;                 :align-items "center"}}
 ;   [text "Title"]])
 
-(defn first-scene-navbar [width height progress]
+(defn first-scene-navbar [width height progress render-next]
   (let [opacity (c/cell->
                   progress
                   (fn [progress]
@@ -50,16 +53,30 @@
                             :top              0
                             :left             0
                             :right            0
+                            :flex-direction   "row"
                             :background-color "rgba(78,86,242,.5)"
                             :justify-content  "center"
                             :align-items      "center"}}
-     [animated-text {:style {:font-size   16
-                             :font-weight "bold"
-                             :opacity     (c/bind-to-animated opacity 1)
-                             :color       "white"
-                             :margin-left (c/bind-to-animated margin-left 0)}} "First scene"]]))
+     [view {:flex 3}]
+     [animated-view {:style {:flex            8
+                             :opacity         (c/bind-to-animated opacity 1)
+                             :margin-left     (c/bind-to-animated margin-left 0)
+                             :justify-content "center"
+                             :align-items     "center"}}
+      [animated-text {:style {:font-size   16
+                              :font-weight "bold"
+                              :color       "white"}} "First scene"]]
+     [animated-touchable-opacity {:style    {:flex            3
+                                             :padding-left    10
+                                             :padding-right   10
+                                             :justify-content "center"
+                                             :align-items     "center"
+                                             ;:opacity         (c/bind-to-animated opacity 1)
+                                             }
+                                  :on-press #(render-next progress)}
+      [text "Next"]]]))
 
-(defn second-scene-navbar [width height progress]
+(defn second-scene-navbar [width height progress render-next render-back]
   (let [opacity (c/cell->
                   progress
                   (fn [progress]
@@ -72,21 +89,35 @@
                         (if (> progress 0.5)
                           (* (- 1 (- (* progress 2) 1)) 250)
                           0)))]
-    [animated-view {:style {:position        "absolute"
+    [animated-view {:style {:position         "absolute"
                             ;:height (+ (* (- 1 progress) 50) 50)
-                            :height          100
-                            :width           width
-                            :top             0
-                            :left            0
-                            :right           0
-                            :justify-content "center"
-                            :align-items     "center"
+                            :height           100
+                            :width            width
+                            :top              0
+                            :left             0
+                            :right            0
+                            :flex-direction "row"
+                            :justify-content  "center"
+                            :align-items      "center"
                             :background-color "rgba(78,86,242,.5)"}}
-     [animated-text {:style {:font-size   16
-                             :font-weight "bold"
-                             :opacity     (c/bind-to-animated opacity 0)
-                             :color       "white"
-                             :margin-left (c/bind-to-animated margin-left 0)}} "Second scene"]]))
+     [animated-touchable-opacity {:style    {:flex            3
+                                             :padding-left    10
+                                             :padding-right   10
+                                             :justify-content "center"
+                                             :align-items     "center"
+                                             ;:opacity         (c/bind-to-animated opacity 1)
+                                             }
+                                  :on-press #(render-back progress)}
+      [text "Back"]]
+     [animated-view {:style {:flex            8
+                             :opacity         (c/bind-to-animated opacity 0)
+                             :margin-left     (c/bind-to-animated margin-left 0)
+                             :justify-content "center"
+                             :align-items     "center"}}
+      [animated-text {:style {:font-size   16
+                              :font-weight "bold"
+                              :color       "white"}} "Second scene"]]
+     [view {:flex 3}]]))
 
 (defn first-scene-content [width height progress]
   [animated-view {:style {:position         "absolute"
@@ -166,11 +197,11 @@
                             :background-color "pink"}}]))
 
 (def first-s {:content first-scene-content
-              :navbar first-scene-navbar
+              :navbar  first-scene-navbar
               :tabbar  first-scene-tabbar})
 
 (def second-s {:content second-scene-content
-               :navbar second-scene-navbar
+               :navbar  second-scene-navbar
                :tabbar  second-scene-tabbar})
 
 ;(defn navbar-transition [first-navbar second-navbar [width height progress]]
@@ -205,15 +236,15 @@
                       :content content-transition
                       :tabbar  tabbar-transition})
 
-(defn render-scenes [wrapper first-scene second-scene render-loop props]
+(defn render-scenes [wrapper first-scene second-scene render-next render-back props]
   (let [progress (c/cell)
         result (into wrapper
                      (mapcat
                        identity
                        (for [[key _] first-scene]
-                         [(apply (get first-scene key) (conj props progress))
-                          (apply (get second-scene key) (conj props progress))])))]
-    (render-loop progress)
+                         [(apply (get first-scene key) (conj props progress render-next render-back))
+                          (apply (get second-scene key) (conj props progress render-next render-back))])))]
+    (render-next progress)
     result))
 (def Dimensions
   (. ReactNative -Dimensions))
@@ -235,7 +266,7 @@
         ;                (do
         ;                  (swap! progress #(identity 1))
         ;                  (print (- (js/Date.now) start-time)))))
-        render-loop (fn [progress]
+        render-next (fn [progress]
                       (js/setTimeout (fn anim-loop
                                        ([]
                                         (anim-loop 0))
@@ -250,21 +281,21 @@
                                               (print (- (js/Date.now) start-time))))
                                           )))
                                      300))
-        ;render-loop (fn [progress]
-        ;              (js/setTimeout (fn anim-loop
-        ;                               ([]
-        ;                                (anim-loop 1))
-        ;                               ([val]
-        ;                                (js/requestAnimationFrame
-        ;                                  #(if (> val 0)
-        ;                                    (do
-        ;                                      (c/push progress val)
-        ;                                      (anim-loop (- val 0.016)))
-        ;                                    (do
-        ;                                      (c/push progress 0)
-        ;                                      (print (- (js/Date.now) start-time))))
-        ;                                  )))
-        ;                             300))
+        render-back (fn [progress]
+                      (js/setTimeout (fn anim-loop
+                                       ([]
+                                        (anim-loop 1))
+                                       ([val]
+                                        (js/requestAnimationFrame
+                                          #(if (> val 0)
+                                            (do
+                                              (c/push progress val)
+                                              (anim-loop (- val 0.016)))
+                                            (do
+                                              (c/push progress 0)
+                                              (print (- (js/Date.now) start-time))))
+                                          )))
+                                     300))
         ]
     (fn []
       (render-scenes
@@ -276,7 +307,8 @@
                            :margin-top 30})}]
         first-s
         second-s
-        render-loop
+        render-next
+        render-back
         [width height]))))
 
 (defn init []
