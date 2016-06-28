@@ -204,38 +204,6 @@
                :navbar  second-scene-navbar
                :tabbar  second-scene-tabbar})
 
-;(defn navbar-transition [first-navbar second-navbar [width height progress]]
-;  (if (< progress 0.5)
-;    [first-navbar (- 1 (* progress 2)) width]
-;    [second-navbar (- (* progress 2) 1) width]))
-
-(defn navbar-transition [first-navbar second-navbar [width height progress]]
-  (if (< progress 0.5)
-    [first-navbar (- 1 (* progress 2)) width (* progress 2)]
-    [second-navbar (- (* progress 2) 1) width (- (* progress 2) 1)]))
-
-(defn content-transition [first-content second-content [width height progress]]
-  (cond
-    (= 0 progress) [first-content 0 height width]
-    (= 1 progress) [second-content 0 height width]
-    :else [view
-           [first-content 0 height width]
-           [second-content (* (- 1 progress) width) height width]]))
-
-(defn tabbar-transition [first-tabbar second-tabbar [width height progress]]
-  (let [tabbar-height 60]
-    (if (< progress 0.5)
-      [first-tabbar
-       tabbar-height
-       (- tabbar-height (* (- 1 (* progress 2)) tabbar-height))]
-      [second-tabbar
-       tabbar-height
-       (- tabbar-height (* (- (* progress 2) 1) tabbar-height))])))
-
-(def first-to-second {:navbar  navbar-transition
-                      :content content-transition
-                      :tabbar  tabbar-transition})
-
 (defn render-scenes [wrapper first-scene second-scene render-next render-back props]
   (let [progress (c/cell)
         result (into wrapper
